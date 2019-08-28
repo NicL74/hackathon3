@@ -12,12 +12,12 @@ def main():
 
     entity1 = Entity()
 
-    with open('./workdir/Agent2/server_private.key', 'w') as private_key_file:
+    with open('./workdir/UberX/server_private.key', 'w') as private_key_file:
         entity1.dump(private_key_file)
 
     entity2 = Entity()
 
-    with open('./workdir/Agent2/client_private.key', 'w') as private_key_file:
+    with open('./workdir/UberX/client_private.key', 'w') as private_key_file:
         entity2.dump(private_key_file)
 
     print('Generating keys...complete')

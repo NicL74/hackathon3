@@ -14,7 +14,7 @@ from fetchai.ledger.crypto import Entity, Address, Identity
 
 
 import agent_dataModel
-from agent_dataModel import TIME_AGENT
+from agent_dataModel import TIME_AGENT, DRIVER_AGENT, PASSENGER_TRIP
 
 import json
 import datetime
@@ -23,6 +23,13 @@ import sys
 import time
 import uuid
 import asyncio
+
+#import mlrose
+import numpy as np
+import matplotlib.pyplot as plt
+#from sklearn.cluster import KMeans
+from uber_funcs import roads, satnav, calc_distances
+from uber_data import block_map_array, locations, passengers
 
 
 class ClientAgent(OEFAgent):
@@ -54,12 +61,21 @@ class ClientAgent(OEFAgent):
             return
 
         print("[{0}]: Agent found: {1}".format(self.public_key, agents))
+        
+        # How do we construct the cfp? 
+        # This is where we define pickup and destination locations (and whether UberX or UberPool later)
+        
+        my_query = Query(PASSENGER_TRIP)
+        # Pick a couple of predefined locations for my query pickup and destination (ideally make it rand pick)
+        my_query["pickup_location_name"] = uber_data.locations[0][0]
+        my_query["destination_location_name"] = uber_data.locations[2][0]
+        
 
         for agent in agents:
 
             print("[{0}]: Sending to agent {1}".format(self.public_key, agent))
-            self.pending_cfp += 1
-            self.send_cfp(1, 0, agent, 0, None)
+            self.pending_cfp += 1            
+            self.send_cfp(1, 0, agent, 0, my_query)
 
     def on_propose(self, msg_id: int, dialogue_id: int, origin: str, target: int, proposals: PROPOSE_TYPES):
         """When we receive a Propose message, check if we can afford the data. If so we accept, else we decline the proposal."""
@@ -105,7 +121,7 @@ if __name__ == '__main__':
     api = LedgerApi('127.0.0.1', 8100)
 
     #locate the client account entity for interacting with the ledger.
-    with open ('./workdir/Agent2/client_private.key', 'r') as private_key_file:
+    with open ('./workdir/UberX/client_private.key', 'r') as private_key_file:
         client_agentID = Entity.load(private_key_file)
 
     # define an OEF Agent
@@ -116,8 +132,9 @@ if __name__ == '__main__':
     # connect it to the OEF Node
     client_agent.connect()
 
-    # query OEF for DataService providers
-    echo_query1 = Query([Constraint("timezone", Eq(3)), Constraint("twentyfour", Eq(False))],TIME_AGENT())
+    # query OEF for DataService providers (i.e. available drivers in the area)
+    my_current_area = 3 # Ideally we would keep track of this and update accordingly
+    echo_query1 = Query([Constraint("area", Eq(my_current_area)), Constraint("available", Eq(True))],DRIVER_AGENT())
 
 
     client_agent.search_services(0, echo_query1)

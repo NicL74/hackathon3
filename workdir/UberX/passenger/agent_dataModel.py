@@ -24,5 +24,15 @@ class DRIVER_AGENT (DataModel):
 
 	def __init__(self):
 		super().__init__("driver_datamodel",[self.ATTRIBUTE_AREA,
-									  	 			 self.ATTRIBUTE_ID, self.ATTRIBUTE_AVAILABLE],
-									  	 			 "Agent is available to pick up a passenger.")
+									  	 			 self.ATTRIBUTE_ID, self.ATTRIBUTE_DRIVERNAME, self.ATTRIBUTE_AVAILABLE],
+									  	 			 "Driver is potentially available to pick up a passenger.")
+
+class PASSENGER_TRIP (DataModel):
+	ATTRIBUTE_PICKUP = AttributeSchema("pickup_location_name", str, True, "Pickup location name")
+	ATTRIBUTE_ID = AttributeSchema("id", str, True, "Id")
+	ATTRIBUTE_DESTINATION = AttributeSchema("destination_location_name", str, True, "Destination location name")
+
+	def __init__(self):
+		super().__init__("trip_datamodel",[self.ATTRIBUTE_PICKUP,
+									  	 			 self.ATTRIBUTE_ID, self.ATTRIBUTE_DESTINATION],
+									  	 			 "Passenger trip is defined.")
