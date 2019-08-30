@@ -179,8 +179,8 @@ def roads(*args):
     block_type_array[:,:,11] = np.transpose(threeway) 
     
     # New
-    block_type_array[:,:,12] = h_green*np.ones((block_size,block_size))
-    block_type_array[:,:,13] = h_blue*np.ones((block_size,block_size))
+    block_type_array[:,:,13] = h_green*np.ones(block_size,block_size)
+    block_type_array[:,:,14] = h_blue*np.ones(block_size,block_size)
        
 
     # Display all the block types
@@ -269,14 +269,12 @@ def satnav(*args):
         destination = args[2]
         display_on = args[3]
         
-    #print(roadmap)
-    #print(np.shape(map_array))
-    (y,x) = np.shape(map_array)
 
     # Call the roads function to generate a roadmap
     #print(map_array)
     (roadmap,block_types,block_size) = roads(map_array)
     #print(roadmap)
+    (y,x)=np.shape(map_array)
     (y_rm,x_rm) = np.shape(roadmap)
     # print(y,x,)
     #print(y_rm,x_rm)

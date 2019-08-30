@@ -12,7 +12,6 @@ from fetchai.ledger.api import LedgerApi
 from fetchai.ledger.contract import SmartContract
 from fetchai.ledger.crypto import Entity, Address, Identity
 
-
 import agent_dataModel
 from agent_dataModel import TIME_AGENT, DRIVER_AGENT, PASSENGER_TRIP
 
@@ -29,7 +28,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 #from sklearn.cluster import KMeans
 from uber_funcs import roads, satnav, calc_distances
-from uber_data import block_map_array, locations, passengers
+from uber_data import block_map_array, manhattan, locations, passengers
 
 
 class ClientAgent(OEFAgent):
@@ -65,17 +64,21 @@ class ClientAgent(OEFAgent):
         # How do we construct the cfp? 
         # This is where we define pickup and destination locations (and whether UberX or UberPool later)
         
-        my_query = Query(PASSENGER_TRIP)
+        print(locations[0][0])
+        print(locations[2][0])
+        
+        trip_query = Query([Constraint("pickup_location_name", Eq(str(locations[0][0]))), Constraint("destination_location_name", Eq(str(locations[2][0])))],PASSENGER_TRIP())
+        
         # Pick a couple of predefined locations for my query pickup and destination (ideally make it rand pick)
-        my_query["pickup_location_name"] = uber_data.locations[0][0]
-        my_query["destination_location_name"] = uber_data.locations[2][0]
+        #my_query["pickup_location_name"] = uber_data.locations[0][0]
+        #my_query["destination_location_name"] = uber_data.locations[2][0]
         
 
         for agent in agents:
 
             print("[{0}]: Sending to agent {1}".format(self.public_key, agent))
             self.pending_cfp += 1            
-            self.send_cfp(1, 0, agent, 0, my_query)
+            self.send_cfp(1, 0, agent, 0, trip_query)
 
     def on_propose(self, msg_id: int, dialogue_id: int, origin: str, target: int, proposals: PROPOSE_TYPES):
         """When we receive a Propose message, check if we can afford the data. If so we accept, else we decline the proposal."""
@@ -114,6 +117,7 @@ class ClientAgent(OEFAgent):
     def on_decline(self, msg_id: int, dialogue_id: int, origin: str, target: int) :
         print("Received a decline!")
         self.received_declines += 1
+        self.stop()
 
 if __name__ == '__main__':
 
@@ -135,7 +139,5 @@ if __name__ == '__main__':
     # query OEF for DataService providers (i.e. available drivers in the area)
     my_current_area = 3 # Ideally we would keep track of this and update accordingly
     echo_query1 = Query([Constraint("area", Eq(my_current_area)), Constraint("available", Eq(True))],DRIVER_AGENT())
-
-
     client_agent.search_services(0, echo_query1)
     client_agent.run()
