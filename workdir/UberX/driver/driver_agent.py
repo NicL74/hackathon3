@@ -1,5 +1,6 @@
 import oef
-from oef.agents import OEFAgent
+from oef.agents import OEFAgent, PROPOSE_TYPES
+from oef.core import AsyncioCore
 
 import os, sys
 import json
@@ -9,7 +10,6 @@ from fetchai.ledger.api import LedgerApi
 from fetchai.ledger.contract import SmartContract
 from fetchai.ledger.crypto import Entity, Address, Identity
 
-from oef.proxy import  OEFProxy, PROPOSE_TYPES
 from oef.query import Eq, Range, Constraint, Query, AttributeSchema, Distance
 from oef.schema import DataModel, Description , Location
 from oef.messages import CFP_TYPES
@@ -37,8 +37,9 @@ from uber_data import block_map_array, manhattan, locations, passengers
 
 class Driver_Agent(OEFAgent):
 
-    def __init__(self, public_key: str, oef_addr: str, oef_port: int = 10000):
-        super().__init__(public_key, oef_addr, oef_port, loop=asyncio.new_event_loop())
+    def __init__(self, public_key: str, **kwargs):
+        print("KEY", public_key)
+        super().__init__(public_key, **kwargs)
 
         # generate_schema(model_name: str, attribute_values: Dict[str, ATTRIBUTE_TYPES]) -> DataModel:
         # generate_schema('driver_agent',DRIVER_AGENT)      
@@ -214,6 +215,9 @@ if __name__ == '__main__':
 
     #define the ledger parameters
     api = LedgerApi('127.0.0.1', 8100)
+    
+    core = AsyncioCore()
+    core.run_threaded()
 
     #locate the agent account entity for interacting with the ledger.
     with open ('./workdir/UberX/server_private.key', 'r') as private_key_file:
@@ -230,7 +234,7 @@ if __name__ == '__main__':
     print('Balance Before:', startBalance)
 
     # create agent and connect it to OEF
-    server_agent = Driver_Agent(str(Address(server_agentID)), oef_addr="127.0.0.1", oef_port=10000)
+    server_agent = Driver_Agent(str(Address(server_agentID)), oef_addr="127.0.0.1", oef_port=10000, core=core)
     server_agent.scheme['area'] = 3
     server_agent.scheme['id'] = str(uuid.uuid4())
     server_agent.scheme['drivername'] = "Nic"
@@ -239,5 +243,8 @@ if __name__ == '__main__':
     
     # register a service on the OEF
     server_agent.description = Description(server_agent.scheme, DRIVER_AGENT())
-    server_agent.register_service(0,server_agent.description)
+    print("HERE1")
+    server_agent.register_service(1,server_agent.description)
+    print("HERE2")
     server_agent.run()
+    print("HERE3")

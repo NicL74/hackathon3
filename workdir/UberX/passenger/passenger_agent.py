@@ -2,11 +2,11 @@
 from typing import List
 
 import oef
-from oef.agents import OEFAgent
-from oef.proxy import  OEFProxy, PROPOSE_TYPES
+from oef.agents import OEFAgent, PROPOSE_TYPES
 from oef.query import Eq, Range, Constraint, Query, AttributeSchema, Distance
 from oef.schema import DataModel, Description , Location
 from oef.messages import CFP_TYPES
+from oef.core import AsyncioCore
 
 from fetchai.ledger.api import LedgerApi
 from fetchai.ledger.contract import SmartContract
@@ -35,8 +35,8 @@ class ClientAgent(OEFAgent):
     """
     The class that defines the behaviour of the echo client agent.
     """
-    def __init__(self, public_key: str, oef_addr: str, oef_port: int = 10000):
-        super().__init__(public_key, oef_addr, oef_port, loop=asyncio.new_event_loop())
+    def __init__(self, public_key: str, **kwargs):
+        super().__init__(public_key, **kwargs)
         self.cost = 0
         self.pending_cfp = 0
         self.received_proposals = []
@@ -127,9 +127,12 @@ if __name__ == '__main__':
     #locate the client account entity for interacting with the ledger.
     with open ('./workdir/UberX/client_private.key', 'r') as private_key_file:
         client_agentID = Entity.load(private_key_file)
+        
+    core = AsyncioCore()
+    core.run_threaded()
 
     # define an OEF Agent
-    client_agent = ClientAgent(str(Address(client_agentID)), oef_addr="127.0.0.1", oef_port=10000)
+    client_agent = ClientAgent(str(Address(client_agentID)), oef_addr="127.0.0.1", oef_port=10000, core=core)
 
     print('Balance Before:', api.tokens.balance(client_agentID))
 
