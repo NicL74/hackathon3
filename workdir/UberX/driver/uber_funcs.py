@@ -304,7 +304,7 @@ def satnav(*args):
     y_dest = np.ceil((destination/x))-1
     x_dest = ((destination-((x)*(y_dest))))-1
     # So these params are in python index space (0 to N)
-    # print(y_orig,x_orig,y_dest,x_dest)
+    #print(y_orig,x_orig,y_dest,x_dest)
     
     # Set the distance to zero at start
     distance_array[int(y_orig),int(x_orig)] = 0
@@ -312,7 +312,7 @@ def satnav(*args):
     x_curr = x_orig
     y_curr = y_orig
     current_node = ((y_curr)*x)+x_curr+1
-    # print(current_node)
+    #print(current_node)
 
     last_direction=0
     change_in_direction=4 # Special value to denote start of journey
@@ -402,12 +402,12 @@ def satnav(*args):
     # Now route has been found, work back from the destination to describe the
     # route (using previous_array)
     route_vector = [destination]
-    # print(route_vector)
+    #print(route_vector)
 
     # Turn the array into a vector for ease of manipulation (left to right, then down)
     #temp = np.transpose(previous_array)
     previous_vect = np.concatenate(previous_array)
-    # print(previous_vect)
+    #print(previous_vect)
 
     # Start at the destination and then work backwards to get the previous nodes
     index = destination-1

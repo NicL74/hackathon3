@@ -76,8 +76,8 @@ class Driver_Agent(OEFAgent):
         #print(query.model.__getattribute__["pickup_location_name"])
         #print(query.check(Description({"pickup_location_name": "Hospital"})))
         '''
-        map_array = block_map_array
-        #map_array = manhattan
+        #map_array = block_map_array
+        map_array = manhattan
         
         """Driver needs to understand what route is being requested and decide whether to bid or not."""
         passenger_id = 2
@@ -97,9 +97,9 @@ class Driver_Agent(OEFAgent):
         profit_today_sofar = 20
         actual_earnings_per_unit_time = 12
         speed = 30
-        current_block = 5 # Need to keep track of this and update as move
+        current_block = 529 # Need to keep track of this and update as move
         
-        number_of_competitors = np.random.randint(5,30)
+        number_of_competitors = np.random.randint(10,60)
         
         cost_of_bid = 0.5 #fet_tx_fee
         
@@ -110,12 +110,12 @@ class Driver_Agent(OEFAgent):
         num_locations = np.shape(locations)[0]
         for row in range(0,num_locations):
             if(locations[row][0]==pickup_location):
-                xp = int(locations[row][1])
-                yp = int(locations[row][2])
+                xp = int(locations[row][2])
+                yp = int(locations[row][1])
             if(locations[row][0]==destination_location):
-                xd = int(locations[row][1])
-                yd = int(locations[row][2])
-                #print(xp,yp,xd,yd)
+                xd = int(locations[row][2])
+                yd = int(locations[row][1])
+                print(xp,yp,xd,yd)
             
         # Convert from x and y in blocks into a block number (starting at 1 and zig-zagging left to right, top to bottom)
         pickup_block = xp + x*(yp-1)
