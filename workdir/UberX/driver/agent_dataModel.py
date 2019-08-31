@@ -21,6 +21,7 @@ class DRIVER_AGENT (DataModel):
 	ATTRIBUTE_ID = AttributeSchema("id", str, True, "Id")
 	ATTRIBUTE_DRIVERNAME = AttributeSchema("drivername", str, True, "DriverName") 
 	ATTRIBUTE_AVAILABLE = AttributeSchema("available", bool, True, "If available to pick up a passenger")
+    
 
 	def __init__(self):
 		super().__init__("driver_datamodel",[self.ATTRIBUTE_AREA,

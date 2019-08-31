@@ -43,11 +43,28 @@ class Driver_Agent(OEFAgent):
         # generate_schema(model_name: str, attribute_values: Dict[str, ATTRIBUTE_TYPES]) -> DataModel:
         # generate_schema('driver_agent',DRIVER_AGENT)      
         
+        # Driver's personal parameters (for local storage)
+        self.driver_params={}
+        self.driver_params['current_block_location'] = 502
+        self.driver_params['spare_seats_in_car'] = 4
+        self.driver_params['driver_name'] = "Zelda"
+        self.earnings_for_day = 0
+        self.driver_params['target_earnings_for_day'] = 150
+        self.driver_params['target_earnings_per_unit_time'] = 20
+        self.driver_params['min_earnings_per_unit_time'] = 10
+        self.driver_params['cost_per_unit_distance'] = 0.5
+        self.driver_params['actual_earnings_per_unit_time'] = 12
+        self.driver_params['speed'] = 30
+        
+        # Driver's personal parameters (for OEF)
         self.scheme = {}
         self.scheme['area'] = None
         self.scheme['id'] = None
         self.scheme['drivername'] = "Nic"
-        self.scheme['available'] = None    
+        self.scheme['available'] = None  
+        
+        # Driver's store of active quotes
+        self.myquotes = {}
         
 
     def on_cfp(self, msg_id: int, dialogue_id: int, origin: str, target: int, query: CFP_TYPES):
@@ -55,50 +72,27 @@ class Driver_Agent(OEFAgent):
         """Acknowledge CFP received"""
         print("[{0}]: Received CFP from {1}".format(self.public_key, origin))
         
-        #q1 = Query([Constraint("pickup_location_name", Eq(str(locations[0][0]))), Constraint("destination_location_name", Eq(str(locations[2][0])))],PASSENGER_TRIP())
+        trip_data={}
+        trip_data[origin] = json.loads(query.decode("UTF-8"))
+        print(trip_data[origin])
         
-        #print(query.check(Description({"pickup_location_name","station" })))
-        '''
-        print('boo')
-        print(dir(query))
-        print(dir(query.model))
-        print(dir(query.model.attributes_by_name["pickup_location_name"]))        
-        print('hoo')
-        print(dir(query.model.attribute_schemas))
-        print('88')
-        print(dir(query.model.attributes_by_name.description))
-        print('77')
-        print(dir(query.__dict__.values))
-        print((query.__dict__.values))
-        print('hello')
-        print((query.__dict__.constraints))
-        
-        #print(query.model.__getattribute__["pickup_location_name"])
-        #print(query.check(Description({"pickup_location_name": "Hospital"})))
-        '''
         #map_array = block_map_array
         map_array = manhattan
         
+        print(locations)
+        
         """Driver needs to understand what route is being requested and decide whether to bid or not."""
-        passenger_id = 2
-        passenger_name = "Angela"
+        passenger_id = trip_data[origin]['passenger_id']
+        passenger_name = trip_data[origin]['passenger_name']
         # Locations supplied in format: map block number
-        pickup_location = locations[2][0] # How do I read parameter values from a CFP?
-        destination_location = locations[4][0]
+        pickup_location = trip_data[origin]['pickup'] 
+        destination_location = trip_data[origin]['destination']
+        print(pickup_location, destination_location)
         
         print('Driver has received query for trip from '+pickup_location+' to '+destination_location)
         
         """How long is the route being requested? What would be my incurred cost to deliver?"""
-        # Driver's personal parameters 
-        cost_per_unit_distance = 0.5
-        target_earnings_per_unit_time = 20
-        min_earnings_per_unit_time = 10
-        target_daily_profit = 150
-        profit_today_sofar = 20
-        actual_earnings_per_unit_time = 12
-        speed = 30
-        current_block = 529 # Need to keep track of this and update as move
-        
+        # How can I find this number from the OEF?
         number_of_competitors = np.random.randint(10,60)
         
         cost_of_bid = 0.5 #fet_tx_fee
@@ -110,12 +104,18 @@ class Driver_Agent(OEFAgent):
         num_locations = np.shape(locations)[0]
         for row in range(0,num_locations):
             if(locations[row][0]==pickup_location):
-                xp = int(locations[row][2])
-                yp = int(locations[row][1])
+                xp = int(locations[row][1])
+                yp = int(locations[row][2])
             if(locations[row][0]==destination_location):
-                xd = int(locations[row][2])
-                yd = int(locations[row][1])
-                print(xp,yp,xd,yd)
+                xd = int(locations[row][1])
+                yd = int(locations[row][2])
+        print(xp,yp,xd,yd)
+        
+        # Run a check on the block values at these locations to ensure they are not blank
+        pickup_block_val = map_array[yp-1,xp-1]
+        print('Pickup block val = '+str(pickup_block_val))
+        destination_block_val = map_array[yd-1,xd-1]
+        print('Destination block val = '+str(destination_block_val))
             
         # Convert from x and y in blocks into a block number (starting at 1 and zig-zagging left to right, top to bottom)
         pickup_block = xp + x*(yp-1)
@@ -127,11 +127,18 @@ class Driver_Agent(OEFAgent):
         (route_vector, distance, instructions, roadmap) = satnav(map_array,pickup_block,destination_block,0) #display_on = 0
         distance1 = distance
         print('Distance of requested route = '+str(distance1))
+        speed = self.driver_params['speed']
         time1 = distance1/speed
+        cost_per_unit_distance = self.driver_params['cost_per_unit_distance']
         cost1 = cost_per_unit_distance * distance1
         # Use the 'satnav' function to calculate a route and a distance from current location to pickup point 
-        (route_vector, distance, instructions, roadmap) = satnav(map_array,current_block,pickup_block,0) #display_on = 0
-        distance2 = distance
+        current_location = self.driver_params['current_block_location']
+        print('current location: '+str(current_location))
+        if(current_location==pickup_block):
+            distance2 = 0
+        else:
+            (route_vector, distance, instructions, roadmap) = satnav(map_array,current_location,pickup_block,0)
+            distance2 = distance
         print('Distance from current location to pickup point = '+str(distance2))
         time2 = distance2/speed
         cost2 = cost_per_unit_distance * distance2
@@ -140,16 +147,18 @@ class Driver_Agent(OEFAgent):
         print('Total cost to deliver job: '+str(total_cost)+' (based on cost per distance of '+str(cost_per_unit_distance)+')')
         total_time = time1 + time2
         print('Total time to deliver job: '+str(total_time))
+        target_earnings_per_unit_time = self.driver_params['target_earnings_per_unit_time']
         print('Target earnings per unit time: '+str(target_earnings_per_unit_time))
         # Calculate a target price for job (to deliver target earnings_per_unit time) and minimum price
         target_price = total_cost + target_earnings_per_unit_time*total_time
         print('Target price for job: '+str(target_price))
+        min_earnings_per_unit_time = self.driver_params['min_earnings_per_unit_time']        
         min_price = total_cost + min_earnings_per_unit_time*total_time
         # Calculate likelihood of successful bid
         num_bidders = number_of_competitors+1 #'''Would need to get this number from OEF'''
         print('Number of bidders: '+str(num_bidders))
         '''Ideally I would include some weighting to take into account how close to pickup I am'''
-        successful_bid_likelihood = 1/num_bidders
+        successful_bid_likelihood = (1/(distance2+1.1))**(num_bidders-1)**.05
         print('Successful bid likelihood: '+str(successful_bid_likelihood))
         # Calculate profit if bid accepted
         potential_profit = target_earnings_per_unit_time*total_time
@@ -171,6 +180,13 @@ class Driver_Agent(OEFAgent):
             print("[{0}]: Sending propose at price: {1}".format(self.public_key, bid_price))
             self.send_propose(msg_id + 1, dialogue_id, origin, target + 1, [proposal])
             startBalance = api.tokens.balance(server_agentID)
+            # Keep track of quotes
+            self.myquotes[origin]={
+                "pickup": trip_data[origin]['pickup'],
+                "destination": trip_data[origin]['destination'],
+                "bid_price": bid_price
+            }
+            
         # If worth_bidding is false, decline to bid
         else:
             print("[{0}]: Declining to bid, at expected profit: {1} vs. cost of bid: {2}".format(self.public_key, expected_profit, cost_of_bid))
@@ -183,8 +199,8 @@ class Driver_Agent(OEFAgent):
         
         # Get the passenger name from the original CFP? Hard code for now
         passenger_name = "Angela"
-        driver_name = "Zelda"
-        pickup_location = locations[2][0]
+        driver_name = self.driver_params['driver_name']
+        pickup_location = self.myquotes[origin]['pickup']
 
         if startBalance < api.tokens.balance(server_agentID):
             command = {}
@@ -193,7 +209,22 @@ class Driver_Agent(OEFAgent):
             msg = json.dumps(command)
             self.send_message(0,dialogue_id, origin, msg.encode())
 
-            print('Final Balance:', api.tokens.balance(server_agentID))
+            print('Final Balance: ', api.tokens.balance(server_agentID))
+            quoted_bid = self.myquotes[origin]['bid_price']
+            print('quoted_bid = '+str(quoted_bid))
+            self.myquotes[origin] = {} # Clear the entry
+            self.earnings_for_day += quoted_bid  
+            # Check if driver has earned enough for the day?
+            earnings_progress = self.earnings_for_day/self.driver_params['target_earnings_for_day']
+            if(earnings_progress >= 1):
+                print("{0} % of target earnings achieved, so I'm off home!".format("%.2f" % (earnings_progress*100)))
+                server_agent.scheme['available'] = False
+                # Update the service on the OEF
+                server_agent.description = Description(server_agent.scheme, DRIVER_AGENT())
+                server_agent.register_service(0,server_agent.description)
+            else:
+                print("{0} % of target earnings achieved, so got to keep going!".format("%.2f" % (earnings_progress*100)))
+                
         else:
             print('No Funds Sent!')
             print('Ending Dialogue')
@@ -202,6 +233,7 @@ class Driver_Agent(OEFAgent):
 
     def on_decline(self, msg_id: int, dialogue_id: int, origin: str, target: int):
         print("declined")
+        self.myquotes[origin] = {}
         '''May decide to make improved bid to'''
 
 
@@ -234,7 +266,7 @@ if __name__ == '__main__':
     server_agent.scheme['area'] = 3
     server_agent.scheme['id'] = str(uuid.uuid4())
     server_agent.scheme['drivername'] = "Nic"
-    server_agent.scheme['available'] = True    
+    server_agent.scheme['available'] = True
     server_agent.connect()
     
     # register a service on the OEF

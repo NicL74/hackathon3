@@ -41,6 +41,10 @@ class ClientAgent(OEFAgent):
         self.pending_cfp = 0
         self.received_proposals = []
         self.received_declines = 0
+        self.block_location = 496
+        num_locations,x = np.shape(locations)
+        self.num_locations = num_locations
+        self.passenger_name = "Angela"
 
 
     def on_message(self, msg_id: int, dialogue_id: int, origin: str, content: bytes):
@@ -64,10 +68,23 @@ class ClientAgent(OEFAgent):
         # How do we construct the cfp? 
         # This is where we define pickup and destination locations (and whether UberX or UberPool later)
         
-        print(locations[0][0])
-        print(locations[2][0])
+        #print(locations[0][0])
+        #print(locations[2][0])
+        p = np.random.randint(0,self.num_locations)
+        d = np.random.randint(0,self.num_locations)
+        if(p==d):
+            if(p>0):
+                p -= 1
+            else:
+                p += 1
+        pickup_location = locations[p][0]
+        destination_location = locations[d][0]
         
-        trip_query = Query([Constraint("pickup_location_name", Eq(str(locations[0][0]))), Constraint("destination_location_name", Eq(str(locations[2][0])))],PASSENGER_TRIP())
+        #trip_query = Query([Constraint("pickup_location_name", Eq(str(locations[0][0]))), Constraint("destination_location_name", Eq(str(locations[2][0])))],PASSENGER_TRIP())
+        trip_query = json.dumps({"pickup": pickup_location, \
+        "destination": destination_location, \
+        "passenger_id": 42, \
+        "passenger_name": self.passenger_name}) .encode("UTF-8")
         
         # Pick a couple of predefined locations for my query pickup and destination (ideally make it rand pick)
         #my_query["pickup_location_name"] = uber_data.locations[0][0]
