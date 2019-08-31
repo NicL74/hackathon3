@@ -124,7 +124,8 @@ class Driver_Agent(OEFAgent):
         print('Destination location: '+destination_location+' (Block: '+str(destination_block)+')')
         
         # Use the 'satnav' function to calculate a route and a distance for requested route
-        (route_vector, distance, instructions, roadmap) = satnav(map_array,pickup_block,destination_block,0) #display_on = 0
+        (route_vector2, distance, instructions, roadmap) = satnav(map_array,pickup_block,destination_block,0) #display_on = 0
+        #print(route_vector2)
         distance1 = distance
         print('Distance of requested route = '+str(distance1))
         speed = self.driver_params['speed']
@@ -137,7 +138,8 @@ class Driver_Agent(OEFAgent):
         if(current_location==pickup_block):
             distance2 = 0
         else:
-            (route_vector, distance, instructions, roadmap) = satnav(map_array,current_location,pickup_block,0)
+            (route_vector1, distance, instructions, roadmap) = satnav(map_array,current_location,pickup_block,0)
+            #print(route_vector1)
             distance2 = distance
         print('Distance from current location to pickup point = '+str(distance2))
         time2 = distance2/speed
@@ -180,11 +182,20 @@ class Driver_Agent(OEFAgent):
             print("[{0}]: Sending propose at price: {1}".format(self.public_key, bid_price))
             self.send_propose(msg_id + 1, dialogue_id, origin, target + 1, [proposal])
             startBalance = api.tokens.balance(server_agentID)
+            # Create the combined route vector to implement the job
+            route_length1 = np.shape(route_vector1)[0]
+            full_route = np.vstack((route_vector1[0:route_length1-1],route_vector2))
+            #print(full_route)
+            
             # Keep track of quotes
             self.myquotes[origin]={
                 "pickup": trip_data[origin]['pickup'],
                 "destination": trip_data[origin]['destination'],
-                "bid_price": bid_price
+                "pickup_block": pickup_block,
+                "destination_block": destination_block,
+                "bid_price": bid_price,
+                "full_route": full_route,
+                "passenger_name": trip_data[origin]['passenger_name']
             }
             
         # If worth_bidding is false, decline to bid
@@ -212,8 +223,29 @@ class Driver_Agent(OEFAgent):
             print('Final Balance: ', api.tokens.balance(server_agentID))
             quoted_bid = self.myquotes[origin]['bid_price']
             print('quoted_bid = '+str(quoted_bid))
-            self.myquotes[origin] = {} # Clear the entry
             self.earnings_for_day += quoted_bid  
+            # Now we want to drive the agreed route, changing position with time
+            #print(self.myquotes[origin])
+            route_vector = self.myquotes[origin]['full_route']
+            #print(route_vector)
+            passenger_name = self.myquotes[origin]['passenger_name']
+            pickup_block = self.myquotes[origin]['pickup_block']
+            destination_block = self.myquotes[origin]['destination_block']
+            pickup_location = self.myquotes[origin]['pickup']
+            destination_location = self.myquotes[origin]['destination']
+            
+            for k,v in enumerate(route_vector):
+                current_block_location = route_vector[k]
+                self.driver_params['current_block_location'] = current_block_location
+                print('current_block_location = '+str(current_block_location))
+                if(current_block_location==pickup_block):
+                    print('Passenger {0} picked up at {1}'.format(passenger_name,pickup_location))
+                if(current_block_location==destination_block):
+                    print('Passenger {0} dropped off at {1}'.format(passenger_name,destination_location))
+                time.sleep(.2)
+            
+            self.myquotes[origin] = {} # Clear the entry
+            
             # Check if driver has earned enough for the day?
             earnings_progress = self.earnings_for_day/self.driver_params['target_earnings_for_day']
             if(earnings_progress >= 1):

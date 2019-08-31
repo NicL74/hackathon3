@@ -37,7 +37,7 @@ locations = np.array([("airport", 3, 28),     \
                       ("garage", 12, 28), \
                       ("hospital", 36, 13),   \
                       ("ice-rink", 30, 7),   \
-                      ("jailhouse", 28, 5)])
+                      ("jailhouse", 30, 5)])
 
 # Define list of passengers
 # format: <name> <profile>
