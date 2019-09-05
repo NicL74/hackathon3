@@ -21,12 +21,14 @@ import random
 import json
 import datetime
 import copy
+import jsonify
 
 import asyncio
 
 import uuid
 import time
 
+import requests
 #import mlrose
 import numpy as np
 import matplotlib.pyplot as plt
@@ -34,12 +36,18 @@ import matplotlib.pyplot as plt
 from uber_funcs import roads, satnav, calc_distances
 from uber_data import block_map_array, manhattan, locations, passengers
 
+# For graphics export 
+#from websocket_server import WebsocketServer
+
+
 
 class Driver_Agent(OEFAgent):
 
     def __init__(self, public_key: str, oef_addr: str, oef_port: int = 10000):
         super().__init__(public_key, oef_addr, oef_port, loop=asyncio.new_event_loop())
 
+        #server = WebsocketServer(9001)
+        
         # generate_schema(model_name: str, attribute_values: Dict[str, ATTRIBUTE_TYPES]) -> DataModel:
         # generate_schema('driver_agent',DRIVER_AGENT)      
         
@@ -49,6 +57,7 @@ class Driver_Agent(OEFAgent):
         self.driver_params['spare_seats_in_car'] = 4
         self.driver_params['driver_name'] = "Zelda"
         self.earnings_for_day = 0
+        self.id = -1
         self.driver_params['target_earnings_for_day'] = 150
         self.driver_params['target_earnings_per_unit_time'] = 20
         self.driver_params['min_earnings_per_unit_time'] = 10
@@ -65,6 +74,24 @@ class Driver_Agent(OEFAgent):
         
         # Driver's store of active quotes
         self.myquotes = {}
+        
+        # Define the location for the dynamic_map endpoint
+        self.cars_api = "http://0.0.0.0:80/cars"
+        # Add this car to the map data store
+        # data to be sent to api 
+        data = {
+            'public_key': public_key,
+            'current_block_location': int(self.driver_params['current_block_location']),
+            'driver_name': self.driver_params['driver_name'],
+            'available': True,
+            'number_of_passengers': 0,
+            'spare_seats_in_car': self.driver_params['spare_seats_in_car']
+        }
+        r2 = requests.post(url = self.cars_api, json=data)
+        data = r2.json()
+        self.id = data['car']['id']
+        print('Car id: '+str(self.id))
+        
         
 
     def on_cfp(self, msg_id: int, dialogue_id: int, origin: str, target: int, query: CFP_TYPES):
@@ -209,7 +236,7 @@ class Driver_Agent(OEFAgent):
         print("[{0}]: Received accept from {1}.".format(self.public_key, origin))
         
         # Get the passenger name from the original CFP? Hard code for now
-        passenger_name = "Angela"
+        passenger_name = self.myquotes[origin]['passenger_name']
         driver_name = self.driver_params['driver_name']
         pickup_location = self.myquotes[origin]['pickup']
 
@@ -234,14 +261,65 @@ class Driver_Agent(OEFAgent):
             pickup_location = self.myquotes[origin]['pickup']
             destination_location = self.myquotes[origin]['destination']
             
+            
             for k,v in enumerate(route_vector):
                 current_block_location = route_vector[k]
                 self.driver_params['current_block_location'] = current_block_location
                 print('current_block_location = '+str(current_block_location))
+                # Detect pickup location
                 if(current_block_location==pickup_block):
                     print('Passenger {0} picked up at {1}'.format(passenger_name,pickup_location))
+                    # Send graphics data that number_of_passengers has incremented
+                    payload = {'id': self.id}
+                    r1 = requests.get(url = self.cars_api+'/'+str(self.id), params=payload)
+                    data = r1.json()
+                    #print('data: '+str(data))
+                    number_of_passengers = int(data['car']['number_of_passengers'])
+                    spare_seats = int(data['car']['spare_seats_in_car'])
+                    newdata = {
+                        'number_of_passengers': number_of_passengers+1,
+                        'spare_seats_in_car': spare_seats-1
+                    }
+                    #print('newdata: '+str(newdata))
+                    r2 = requests.put(url = self.cars_api+'/'+str(self.id), json=newdata)
+                    #print('pickup')
+                    # Update local storage
+                    self.driver_params['spare_seats_in_car'] = spare_seats
+                    self.driver_params['number_of_passengers'] = number_of_passengers
+                # Detect drop-off location    
                 if(current_block_location==destination_block):
                     print('Passenger {0} dropped off at {1}'.format(passenger_name,destination_location))
+                    # Send graphics data that number_of_passengers has decremented
+                    payload = {'id': self.id}
+                    r1 = requests.get(url = self.cars_api+'/'+str(self.id), params=payload)
+                    data = r1.json()
+                    #print('data: '+str(data))
+                    number_of_passengers = int(data['car']['number_of_passengers'])
+                    spare_seats = int(data['car']['spare_seats_in_car'])
+                    newdata = {
+                        'number_of_passengers': number_of_passengers-1,
+                        'spare_seats_in_car': spare_seats+1
+                    }
+                    #print('newdata: '+str(newdata))
+                    r2 = requests.put(url = self.cars_api+'/'+str(self.id), json=newdata)
+                    #print('dropoff')
+                    # Update local storage
+                    self.driver_params['spare_seats_in_car'] = spare_seats
+                    self.driver_params['number_of_passengers'] = number_of_passengers
+                    
+                # Send graphics data to client
+                payload = {'id': self.id}
+                #print(payload)
+                r1 = requests.get(url = self.cars_api+'/'+str(self.id), params=payload)
+                data = r1.json()
+                #print(data)
+                # data to be sent to api 
+                data = {
+                    'current_block_location': int(current_block_location)
+                }
+                r2 = requests.put(url = self.cars_api+'/'+str(self.id), json=data)
+                
+                # Pause to demote travel time
                 time.sleep(.2)
             
             self.myquotes[origin] = {} # Clear the entry
@@ -278,6 +356,8 @@ if __name__ == '__main__':
 
     #define the ledger parameters
     api = LedgerApi('127.0.0.1', 8100)
+    
+    
 
     #locate the agent account entity for interacting with the ledger.
     with open ('./workdir/UberX/server_private.key', 'r') as private_key_file:
@@ -305,3 +385,7 @@ if __name__ == '__main__':
     server_agent.description = Description(server_agent.scheme, DRIVER_AGENT())
     server_agent.register_service(0,server_agent.description)
     server_agent.run()
+    
+    # Register the client and run the server forever
+    #server.set_fn_new_client(new_client)
+    #server.run_forever()
